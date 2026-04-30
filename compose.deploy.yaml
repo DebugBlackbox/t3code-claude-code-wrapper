@@ -1,0 +1,26 @@
+services:
+  claude-t3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RUN_USER: ${RUN_USER:-t3user}
+    # ports:
+    #   - "3000:3000"
+    volumes:
+      - t3code_server:/home/${RUN_USER:-t3user}
+    env_file:
+      - .env
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command: npx t3 server --port 3000
+    networks:
+      - dokploy-network
+
+volumes:
+  t3code_server:
+
+networks:
+  dokploy-network:
+    external: true
