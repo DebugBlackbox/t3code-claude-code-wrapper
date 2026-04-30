@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# --- Block domains via /etc/hosts ---
+# Block domains via /etc/hosts — runs as root before privilege drop
 if [ -n "$BLOCKED_DOMAINS" ]; then
     IFS=',' read -ra _domains <<< "$BLOCKED_DOMAINS"
     for _domain in "${_domains[@]}"; do
@@ -12,19 +12,13 @@ if [ -n "$BLOCKED_DOMAINS" ]; then
     done
 fi
 
-# --- Write Claude onboarding settings ---
-_target_home=$([ "${RUN_AS_ROOT}" = "true" ] && echo /root || getent passwd "$RUN_USER" | cut -d: -f6)
-
+# Write Claude onboarding settings to the target user's home
+_home=$([ "${RUN_USER}" = "root" ] && echo /root || echo "/home/${RUN_USER}")
 if [ -n "$ANTHROPIC_API_KEY" ]; then
-    mkdir -p "${_target_home}/.claude"
-    printf '{"hasCompletedOnboarding":true,"theme":"dark"}' > "${_target_home}/.claude.json"
-    printf '{"hasCompletedOnboarding":true,"theme":"dark"}' > "${_target_home}/.claude/settings.json"
-    [ "${RUN_AS_ROOT}" != "true" ] && chown -R "${RUN_USER}:${RUN_USER}" "${_target_home}/.claude" "${_target_home}/.claude.json"
+    mkdir -p "${_home}/.claude"
+    printf '{"hasCompletedOnboarding":true,"theme":"dark"}' > "${_home}/.claude.json"
+    printf '{"hasCompletedOnboarding":true,"theme":"dark"}' > "${_home}/.claude/settings.json"
+    [ "${RUN_USER}" != "root" ] && chown -R "${RUN_USER}:${RUN_USER}" "${_home}/.claude" "${_home}/.claude.json"
 fi
 
-# --- Drop privileges or stay root ---
-if [ "${RUN_AS_ROOT}" = "true" ]; then
-    exec "$@"
-else
-    exec gosu "$RUN_USER" "$@"
-fi
+exec gosu "${RUN_USER}" "$@"

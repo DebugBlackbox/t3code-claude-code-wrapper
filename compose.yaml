@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         RUN_USER: ${RUN_USER:-t3user}
+        GRANT_SUDO: ${GRANT_SUDO:-false}
     container_name: claude-t3-dev
     ports:
       - "3000:3000"

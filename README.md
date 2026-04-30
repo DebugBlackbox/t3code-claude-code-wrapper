@@ -8,7 +8,7 @@ Remotely access Claude Code from the t3code UI via a self-hosted Docker containe
 |---|---|
 | `Dockerfile` | `node:24-slim` image with Claude Code CLI and `t3` pre-installed |
 | `compose.yaml` | Runs `npx t3 server --port 3000`, persists workspace in a named volume |
-| `entrypoint.sh` | Runs as root: blocks domains, sets up Claude, drops to configured user via gosu |
+| `entrypoint.sh` | Blocks domains (root only), writes Claude onboarding settings, then execs the command |
 | `.env.example` | Template for all supported environment variables |
 
 ## Prerequisites
@@ -30,8 +30,8 @@ Remotely access Claude Code from the t3code UI via a self-hosted Docker containe
    ANTHROPIC_API_KEY=sk-ant-api03-...
 
    # Optional overrides
-   RUN_USER=t3user          # user the server runs as (created automatically)
-   RUN_AS_ROOT=false        # set true to run as root instead
+   RUN_USER=t3user          # user created at build time; set to "root" to run as root
+   GRANT_SUDO=false         # set true to give RUN_USER passwordless sudo
 
    BLOCKED_DOMAINS=facebook.com,reddit.com  # comma-separated, no spaces
    ```
@@ -49,13 +49,15 @@ Remotely access Claude Code from the t3code UI via a self-hosted Docker containe
 | Variable | Default | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Anthropic API key, passed directly to Claude Code |
-| `RUN_USER` | `t3user` | Unix user the server process runs as; created at startup if missing |
-| `RUN_AS_ROOT` | `false` | Set `true` to skip user creation and run as root |
-| `BLOCKED_DOMAINS` | — | Comma-separated domains routed to `0.0.0.0` via `/etc/hosts` |
+| `RUN_USER` | `t3user` | Unix user created at **build time** and used to run the server. Set to `root` to run as root. |
+| `GRANT_SUDO` | `false` | Set `true` to give `RUN_USER` passwordless sudo. Requires rebuild. Has no effect when `RUN_USER=root`. |
+| `BLOCKED_DOMAINS` | — | Comma-separated domains routed to `0.0.0.0` via `/etc/hosts`. |
 
 ## Domain blocking
 
 Domains listed in `BLOCKED_DOMAINS` are added to `/etc/hosts` before the server starts. Both the bare domain and `www.` variant are blocked. Connections fail immediately.
+
+> **Note:** The entrypoint always starts as root to apply `/etc/hosts` changes, then drops to `RUN_USER`. Domain blocking works regardless of which user the server runs as.
 
 ## Rebuilding from scratch
 
